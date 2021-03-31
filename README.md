@@ -10,9 +10,7 @@ In addition to the model itself, this project also includes scripts for preproce
 
 
 ## Technologies
-Developed on Ubuntu 20.04.2  /  LTS Kernel: Linux 5.8.0-45-generic
-
-Using:
+* Developed on Ubuntu 20.04.2  /  LTS Kernel: Linux 5.8.0-45-generic
 * Python 2.7.18
 * OpenCV 4.5.1
 
