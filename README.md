@@ -2,7 +2,7 @@
 
 ## Introduction
 The purpose of this project is to create a machine learning model capable of identifying the members of the [Korean boy group SHINee(샤이니)](https://youtu.be/7z62LsMQ-_g?t=98 "SHINee(샤이니)"). from image data.
-I was motivated by my desire to explore machine learning and improve my development skills. What better way to do this than to make it about my favorite K-Pop group!
+I was motivated by my desire to explore machine learning and improve my development skills. What better way to do this than to make it about my favorite K-Pop group?
 
 I am developing a deep neural network from scratch rather than using a machine learning framework (such as Keras or Tensorflow) in order to gain a deeper understanding of the inner workings of neural networks.
 
