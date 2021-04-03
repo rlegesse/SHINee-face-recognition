@@ -52,6 +52,9 @@ print("number of classes " + str(C))
 # Flatten dataset
 X_train, X_test = f.flatten_dataset(X_train, X_test)
 
+# Shuffle dataset
+X_train, Y_train = f.shuffle_data(X_train, Y_train)
+
 # Normalize dataset
 X_train = X_train / float(255)
 X_test = X_test / float(255)

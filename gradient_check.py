@@ -25,8 +25,8 @@ args = vars(ap.parse_args())
 # load test data from dataset folder
 dataset = args["dataset"]
 ratio = float(args["ratio"])
-height = 2
-width = 2
+height = 100
+width = 100
 classification = "multi class"
 
 
@@ -35,10 +35,17 @@ print("\n \n Loading dataset...")
 X_train, Y_train, X_test, Y_test = f.load_datasets(dataset, height, width, ratio)
 print("Finished loading dataset! ")
 
+print(X_train.shape)
+print(Y_train.shape)
+
 m = X_train.shape[0]
 C = len(os.listdir(dataset)) #number of classes
 
+
+
 # PREPROCESSING
+
+
 # Encode labels into one-hot matrices for muli-class classification
 # or 1xm vector 0s and 1s for binary classification
 if classification == "multi class": 
@@ -50,25 +57,32 @@ if classification == "binary":
 	C = 1
 	print("binary classification")
 
-print(Y_train)
 
 # Flatten dataset
 X_train, X_test = f.flatten_dataset(X_train, X_test)
+
+print(X_train.shape)
+print(Y_train.shape)
+
+# Shuffle dataset
+X_train, Y_train = f.shuffle_data(X_train, Y_train)
+
+print(Y_train)
 
 # Normalize dataset
 X_train = X_train / float(255)
 X_test = X_test / float(255)
 
 # Define model parameters / hyperparameters and set up the network
-layer_dims = [X_train.shape[0], 25, 5, 5, 3, C] # number of hidden units in each layer
-activations = [ "tanh", "ReLU", "tanh", "tanh", "softmax"]
-learning_rate = 0.5
+layer_dims = [X_train.shape[0], 25, 25, 25, 5, 5, C] # number of hidden units in each layer
+activations = [ "tanh", "tanh", "tanh", "tanh", "tanh", "softmax"]
+learning_rate = 0.8
 minibatch_size = None
 
 L = len(layer_dims) - 1 # total number of layers
 
 #initialize params dictionary
-initialization = "Xavier"
+initialization = "He"
 
 #initialize param values
 if initialization == "Xavier":
@@ -84,7 +98,7 @@ else: raise Exception("Invalid initialization")
 #print(Y_train)
 costs = np.array([[]])
 
-for epoch in range(10000):
+for epoch in range(1000):
 	#print("implementing forward propagation...")
 	cache, cost = f.forward_prop(params, X_train, Y_train, L, activations)
 	costs = np.append(costs, cost)
@@ -94,11 +108,11 @@ for epoch in range(10000):
 	
 	if epoch % 100 == 0:
 		print("Cost after {e} epochs: {c}".format(e=epoch, c=cost))
-	if epoch == 9999: break
+	if epoch == 999: break
 	params = f.update_params(params, grads, learning_rate, optimizer="None")
 	
 #print("implementing gradient check...")
-f.gradient_check_debug(params, grads, X_train, Y_train, L, activations, epsilon = 1e-7)
+f.gradient_check_2(params, grads, X_train, Y_train, L, activations, epsilon = 1e-7)
 		 
 plt.plot(costs)
 plt.show()

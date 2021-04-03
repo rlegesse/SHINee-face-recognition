@@ -231,7 +231,15 @@ def one_hot_encoder(Y_orig, classes):
 		Y[Y_orig[i]-1,i] = 1
 	return Y
 	
+
+def shuffle_data(X, Y):
 	
+	shuffler = np.random.permutation(X.shape[1])
+	print(X.shape[1])
+	X_shuffled = X.T[shuffler]
+	Y_shuffled = Y.T[shuffler]
+	
+	return X_shuffled.T, Y_shuffled.T	
 	
 	
 def initialize_params(layer_dims):  # initialize weights (randomly) and biases (zeros)
