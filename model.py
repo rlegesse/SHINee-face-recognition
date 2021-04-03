@@ -26,7 +26,7 @@ dataset = args["dataset"]
 ratio = float(args["ratio"])
 height = 256
 width = 256
-classification = "multi class"
+classification = "binary"
 
 
 # LOAD DATASET
@@ -57,9 +57,9 @@ X_train = X_train / float(255)
 X_test = X_test / float(255)
 
 # Define model parameters / hyperparameters and set up the network
-layer_dims = [X_train.shape[0], 2, C] # number of hidden units in each layer
-activations = [ "ReLU", "softmax"]
-learning_rate = 5
+layer_dims = [X_train.shape[0], 5, 3, C] # number of hidden units in each layer
+activations = [ "tanh", "tanh", "sigmoid"]
+learning_rate = 0.8
 minibatch_size = None
 
 L = len(layer_dims) - 1 # total number of layers

@@ -13,11 +13,100 @@ from PIL import Image
 from scipy import ndimage
 
 
+def dictionary_to_vector(parameters):
+	"""
+	Roll all our parameters dictionary into a single vector satisfying our specific required shape.
+	"""
+	keys = []
+	count = 0
+	L = len(parameters.keys()) // 2
+	shapes = {}
+	
+	for p in list(parameters.keys()):
+		shapes[p] = parameters[p].shape
 
+	for l in range(1, L+1):
+        
+		# flatten parameter
+		new_vector = np.reshape(parameters["W" + str(l)], (-1,1))
+		keys = keys + ["W" + str(l)]*new_vector.shape[0]
+
+		if count == 0:
+			theta = new_vector
+		else:
+			theta = np.concatenate((theta, new_vector), axis=0)
+
+		count = count + 1
+
+		new_vector = np.reshape(parameters["b" + str(l)], (-1,1))
+		keys = keys + ["b" + str(l)]*new_vector.shape[0]
+        
+		theta = np.concatenate((theta, new_vector), axis=0)    
+	#print(keys)
+	
+	return theta, shapes
+
+
+
+def vector_to_dictionary(theta, shapes):
+	"""
+	Unroll all our parameters dictionary from a single vector satisfying our specific required shape.
+	"""
+	parameters = {}
+	L = len(shapes.keys()) // 2
+	i1 = 0
+	i2 = 0
+	
+	for l in range(1, L+1):
+		shape_W = shapes["W"+str(l)] 
+		shape_b = shapes["b"+str(l)]
+		i1 = i2
+		i2 = i1 + np.prod(shape_W)
+		
+		parameters["W"+str(l)] = theta[i1:i2].reshape(shape_W)
+		i1 = i2 
+		i2 = i1 + np.prod(shape_b)
+		
+		parameters["b"+str(l)] = theta[i1:i2].reshape(shape_b)
+
+	return parameters
+
+def gradients_to_vector(gradients):
+	"""
+	Roll all our parameters dictionary into a single vector satisfying our specific required shape.
+	"""
+	keys = []
+	count = 0
+	L = len(gradients.keys()) // 2
+	shapes = {}
+	
+	for p in list(gradients.keys()):
+		shapes[p] = gradients[p].shape
+
+	for l in range(1, L+1):
+        
+		# flatten parameter
+		new_vector = np.reshape(gradients["dW" + str(l)], (-1,1))
+		keys = keys + ["W" + str(l)]*new_vector.shape[0]
+
+		if count == 0:
+			theta = new_vector
+		else:
+			theta = np.concatenate((theta, new_vector), axis=0)
+
+		count = count + 1
+
+		new_vector = np.reshape(gradients["db" + str(l)], (-1,1))
+		keys = keys + ["b" + str(l)]*new_vector.shape[0]
+        
+		theta = np.concatenate((theta, new_vector), axis=0)    
+	#print(keys)
+	
+	return theta, shapes
 
 
 def sigmoid(Z):
-	A = 1. / (1 + np.exp(-Z))
+	A = 1 / (1 + np.exp(-Z))
 	return A
 
 
@@ -47,8 +136,9 @@ def softmax(Z):
 
 def compute_cost(AL, Y):
     m = Y.shape[1]
-    cost = -(np.dot(Y, np.log(AL).T) + np.dot(1 - Y, np.log(1-AL).T)) / m
-    return np.squeeze(cost)
+    logprobs = np.multiply(np.log(AL),Y) + np.multiply(np.log(1-AL),1-Y)
+    cost = -np.sum(logprobs)/m
+    return float(np.squeeze(cost))
 
 
 
@@ -186,15 +276,14 @@ def random_mini_batches(X_train, Y_train, batch_size):
 
 
 
-def forward_prop(params, X_train, Y_train, layer_dims, activations):
+def forward_prop(params, X_train, Y_train, L, activations):
 
 	# intialize cache dictionary for saving activations
-	L = len(layer_dims)
 	cache = {}
 	cache["A0"] = X_train 
     	
 	# iterate over layer_dims
-	for l in range(L - 1):
+	for l in range(L):
 		cache["Z" + str(l+1)] = np.dot(params["W" + str(l+1)], cache["A" + str(l)]) + params["b" + str(l+1)]
     		if activations[l] == "sigmoid":
     			cache["A" + str(l+1)] = sigmoid(cache["Z"+ str(l+1)])
@@ -204,11 +293,12 @@ def forward_prop(params, X_train, Y_train, layer_dims, activations):
     			cache["A" + str(l+1)] = tanh(cache["Z"+ str(l+1)])
 		elif activations[l] == "softmax":
     			cache["A" + str(l+1)] = softmax(cache["Z"+ str(l+1)])
+    		else: raise Exception("invalid activation function") 
     	
-    	if activations[L-2] == "softmax":			
-		cost = compute_softmax_cost(cache["A" + str(L-1)], Y_train)
+    	if activations[L-1] == "softmax":			
+		cost = compute_softmax_cost(cache["A" + str(L)], Y_train)
 	else:
-		cost = compute_cost(cache["A" + str(L-1)], Y_train)
+		cost = compute_cost(cache["A" + str(L)], Y_train)
 	
     	return cache, cost
 
@@ -226,8 +316,61 @@ def compute_cost_with_regularization():
     None
     return
 
+def gradient_check_2(parameters, gradients, X, Y, L, activations, epsilon = 1e-7):
+# Set-up variables
+    parameters_values, shapes = dictionary_to_vector(parameters)
+    #print(shapes)
+    grad, _ = gradients_to_vector(gradients)
+    #print(type(grad))
+    num_parameters = parameters_values.shape[0]
+    J_plus = np.zeros((num_parameters, 1))
+    J_minus = np.zeros((num_parameters, 1))
+    gradapprox = np.zeros((num_parameters, 1))
+    #print(num_parameters)
+    
+    # Compute gradapprox
+    for i in range(num_parameters):
+        
+        # Compute J_plus[i]. Inputs: "parameters_values, epsilon". Output = "J_plus[i]".
+        # "_" is used because the function you have to outputs two parameters but we only care about the first one
+        ### START CODE HERE ### (approx. 3 lines)
+        thetaplus = np.copy(parameters_values)                                   
+        thetaplus[i][0] += epsilon                             
+        _, J_plus[i]= forward_prop(vector_to_dictionary(thetaplus, shapes), X, Y, L, activations)                            
+        ### END CODE HERE ###
+        
+        # Compute J_minus[i]. Inputs: "parameters_values, epsilon". Output = "J_minus[i]".
+        ### START CODE HERE ### (approx. 3 lines)
+        thetaminus = np.copy(parameters_values)                                  
+        thetaminus[i][0] -= epsilon                                     
+        _, J_minus[i] = forward_prop(vector_to_dictionary(thetaminus, shapes), X, Y, L, activations)
+        ### END CODE HERE ###
+        
+        # Compute gradapprox[i]
+        ### START CODE HERE ### (approx. 1 line)
+        gradapprox[i] = (J_plus[i] - J_minus[i]) / (2*epsilon)
+        #print(i, gradapprox[i] - grad[i])
+        ### END CODE HERE ###
+    	
+    
+    	
+    # Compare gradapprox to backward propagation gradients by computing difference.
+    ### START CODE HERE ### (approx. 1 line)
+    numerator = np.linalg.norm(grad - gradapprox)                                           # Step 1'
+    denominator = np.linalg.norm(grad) + np.linalg.norm(gradapprox)                                         # Step 2'
+    difference = numerator / denominator                                          # Step 3'
+    ### END CODE HERE ###
 
-def gradient_check(grads, params, X, Y, layer_dims, activations, epsilon = 1e-7): #after backprop & before updating params
+    if difference > 2e-7:
+        print ("\033[93m" + "There is a mistake in the backward propagation! difference = " + str(difference) + "\033[0m")
+    else:
+        print ("\033[92m" + "Your backward propagation works perfectly fine! difference = " + str(difference) + "\033[0m")
+    
+    return difference
+
+
+
+def gradient_check_1(grads, params, X, Y, layer_dims, activations, epsilon = 1e-7): #after backprop & before updating params
 	# combine weight and bias vectors into vector theta
 	theta_plus = {}
 	theta_minus = {}
@@ -236,28 +379,8 @@ def gradient_check(grads, params, X, Y, layer_dims, activations, epsilon = 1e-7)
 	dtheta = np.array([[]])
 	
 	L = len(params) // 2
-	
-	#create vector theta from param values
-	#for i in range(1, L+1):
-	#	Wi = params["W" + str(i)].reshape(1,-1)
-	#	bi = params["b" + str(i)].reshape(1,-1)
-	#	theta_i = np.concatenate((Wi, bi), axis=1)
-	#	theta = np.concatenate((theta, theta_i), axis=1)	
-	
-	#compute approximate gradient
-	#for i in range(1, len(theta)+1):
-	#	thetaplus = theta
-	#	thetaplus[i] += epsilon
-			
-		#convert vector theta back to params dictionary
-	#	for i in range (1, L+1):
-	#		Wi = 
-	#		params["W" + str(i)] = 
-	#		bi = params["b" + str(i)].reshape(1,-1)
-		
-	#compute approx. dtheta
 	i = 0
-	for p in list(params.keys()):	
+	for p in list(params.keys()):
 		for index, _ in np.ndenumerate(params[p]):
 
 			theta_plus = params
@@ -304,17 +427,18 @@ def backward_prop(Y, params, cache, activations):
 	
 	# Iterate down inner layers to compute grads starting from outer layer
 	for l in range(L, 0, -1):
-		print("l", l)
+		#print("l", l)
 		dA = dA_prev
 		A_prev = cache["A" + str(l-1)]
 		Zl = cache["Z" + str(l)] 
-		print("Zl", Zl)
+		#print("Zl", Zl)
 		Wl = params["W" + str(l)]
 		
 		# compute Z gradient for layer
 		if activations[l-1] == "sigmoid":
 			g_prime = sigmoid(Zl)*(1-sigmoid(Zl))
 			dZl = dA * g_prime
+			dZl = AL - Y
 		if activations[l-1] == "softmax":
 			dZl = cache["A" + str(l)] - Y
 		if activations[l-1] == "ReLU":
@@ -326,13 +450,13 @@ def backward_prop(Y, params, cache, activations):
 			dZl = dA * g_prime
 			
 		# compute weight/bias gradients
-		dWL = np.dot(dZl, A_prev.T) / m
-		dbL = np.sum(dZl, axis=1, keepdims=True) / m
+		dWl = np.dot(dZl, A_prev.T) / m
+		dbl = np.sum(dZl, axis=1, keepdims=True) / m
 		dA_prev = np.dot(Wl.T, dZl)
 		
 		# store gradients
-		grads["dW" + str(l)] = dWL
-		grads["db" + str(l)] = dbL
+		grads["dW" + str(l)] = dWl
+		grads["db" + str(l)] = dbl
 	
 	return grads
 

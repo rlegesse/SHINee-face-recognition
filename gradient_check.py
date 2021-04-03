@@ -25,9 +25,9 @@ args = vars(ap.parse_args())
 # load test data from dataset folder
 dataset = args["dataset"]
 ratio = float(args["ratio"])
-height = 10
-width = 10
-classification = "binary"
+height = 2
+width = 2
+classification = "multi class"
 
 
 # LOAD DATASET
@@ -50,7 +50,7 @@ if classification == "binary":
 	C = 1
 	print("binary classification")
 
-
+print(Y_train)
 
 # Flatten dataset
 X_train, X_test = f.flatten_dataset(X_train, X_test)
@@ -60,9 +60,9 @@ X_train = X_train / float(255)
 X_test = X_test / float(255)
 
 # Define model parameters / hyperparameters and set up the network
-layer_dims = [X_train.shape[0], 2, C] # number of hidden units in each layer
-activations = [ "ReLU", "sigmoid"]
-learning_rate = 5
+layer_dims = [X_train.shape[0], 25, 5, 5, 3, C] # number of hidden units in each layer
+activations = [ "tanh", "ReLU", "tanh", "tanh", "softmax"]
+learning_rate = 0.5
 minibatch_size = None
 
 L = len(layer_dims) - 1 # total number of layers
@@ -79,19 +79,28 @@ elif initialization == "He":
 	params = f.initialize_params_He(layer_dims)
 else: raise Exception("Invalid initialization")
 
+	
 #print(params)
 #print(Y_train)
+costs = np.array([[]])
 
-
-#print("implementing forward propagation...")
-cache, cost = f.forward_prop(params, X_train, Y_train, layer_dims, activations)
+for epoch in range(10000):
+	#print("implementing forward propagation...")
+	cache, cost = f.forward_prop(params, X_train, Y_train, L, activations)
+	costs = np.append(costs, cost)
 	
-#print("implementing backward propagation...")
-grads = f.backward_prop(Y_train, params, cache, activations)
+	#print("implementing backward propagation...")
+	grads = f.backward_prop(Y_train, params, cache, activations)
+	
+	if epoch % 100 == 0:
+		print("Cost after {e} epochs: {c}".format(e=epoch, c=cost))
+	if epoch == 9999: break
+	params = f.update_params(params, grads, learning_rate, optimizer="None")
 	
 #print("implementing gradient check...")
-f.gradient_check(grads, params, X_train, Y_train, layer_dims, activations, epsilon = 1e-7)
-	
-#if epoch % 100 == 0:
-print("Cost: " + str(cost))
+f.gradient_check_debug(params, grads, X_train, Y_train, L, activations, epsilon = 1e-7)
+		 
+plt.plot(costs)
+plt.show()
+
 
