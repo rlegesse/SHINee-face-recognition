@@ -74,8 +74,8 @@ X_train = X_train / float(255)
 X_test = X_test / float(255)
 
 # Define model parameters / hyperparameters and set up the network
-layer_dims = [X_train.shape[0], 25, 25, 25, 5, 5, C] # number of hidden units in each layer
-activations = [ "tanh", "tanh", "tanh", "tanh", "tanh", "softmax"]
+layer_dims = [X_train.shape[0], 5, 5, C] # number of hidden units in each layer
+activations = [ "tanh", "tanh", "softmax"]
 learning_rate = 0.8
 minibatch_size = None
 
@@ -98,9 +98,10 @@ else: raise Exception("Invalid initialization")
 #print(Y_train)
 costs = np.array([[]])
 
-for epoch in range(1000):
+for epoch in range(1):
 	#print("implementing forward propagation...")
-	cache, cost = f.forward_prop(params, X_train, Y_train, L, activations)
+	cache, A = f.forward_prop(params, X_train, Y_train, L, activations)			
+	cost = f.compute_softmax_cost(A, Y_train)
 	costs = np.append(costs, cost)
 	
 	#print("implementing backward propagation...")
@@ -111,7 +112,8 @@ for epoch in range(1000):
 	if epoch == 999: break
 	params = f.update_params(params, grads, learning_rate, optimizer="None")
 	
-#print("implementing gradient check...")
+
+print("implementing gradient check...")
 f.gradient_check_2(params, grads, X_train, Y_train, L, activations, epsilon = 1e-7)
 		 
 plt.plot(costs)

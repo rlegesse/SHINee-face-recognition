@@ -26,7 +26,7 @@ dataset = args["dataset"]
 ratio = float(args["ratio"])
 height = 256
 width = 256
-classification = "binary"
+classification = "multi class"
 
 
 # LOAD DATASET
@@ -60,16 +60,16 @@ X_train = X_train / float(255)
 X_test = X_test / float(255)
 
 # Define model parameters / hyperparameters and set up the network
-layer_dims = [X_train.shape[0], 5, 3, C] # number of hidden units in each layer
-activations = [ "tanh", "tanh", "sigmoid"]
-learning_rate = 0.8
+layer_dims = [X_train.shape[0], 20, 6, 6, 6, 5, C] # number of hidden units in each layer
+activations = [ "ReLU", "ReLU", "ReLU","ReLU",  "ReLU", "softmax"]
+learning_rate = 1
 minibatch_size = None
 
 L = len(layer_dims) - 1 # total number of layers
 epochs = 1
 
 #initialize params dictionary
-initialization = "random"
+initialization = "Xavier"
 
 #initialize param values
 if initialization == "Xavier":
@@ -81,21 +81,34 @@ elif initialization == "He":
 else: raise Exception("Invalid initialization")
 
 costs = np.array([[]])
+print("x train shape:" + str(X_train.shape))
+
 
 for epoch in range(epochs):
 	#print("implementing forward propagation...")
-	cache, cost = f.forward_prop(params, X_train, Y_train, layer_dims, activations)
+	cache, A = f.forward_prop(params, X_train, Y_train, L, activations)			
+	cost = f.compute_softmax_cost(A, Y_train)
 	costs = np.append(costs, cost)
 	
 	#print("implementing backward propagation...")
 	grads = f.backward_prop(Y_train, params, cache, activations)
 	
-	f.gradient_check(grads, params, X_train, Y_train, layer_dims, activations, epsilon = 1e-7)
+	#f.gradient_check(grads, params, X_train, Y_train, layer_dims, activations, epsilon = 1e-7)
 	
 	params = f.update_params(params, grads, learning_rate, optimizer="None")
 	#if epoch % 100 == 0:
 	print("Cost after {epoch} epochs: {cost}".format(epoch = epoch, cost=cost))
-	 
+
+#use the optimized parameters on the test set	 
+_, A_test = f.forward_prop(params, X_test, Y_test, L, activations)
+
+#compute the accuracy of the model
+test_accuracy = f.top1_accuracy(A_test, Y_test) 
+train_accuracy = f.top1_accuracy(A, Y_train)
+
+print("train accuracy: " + str(train_accuracy))
+print("test accuracy: " + str(test_accuracy))
+
 plt.plot(costs)
 plt.show()
 

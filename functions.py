@@ -129,9 +129,18 @@ def softmax(Z):
     C = -np.max(Z) #set constant to prevent denom from blowing up.
     t = np.exp(Z + C)
     A = t / np.sum(t, axis=0)
+    #print("softmax shape" + str(A.shape))
     return A
 
 
+def batch_softmax_jacobian(Z): # returns a tensor of jacobian matrices for each example 
+	a = softmax(Z)
+	m = a.shape[1]
+	n = a.shape[0]
+	DM = (a.T).reshape(m,-1,1) * np.identity(n) #diagonal matrix
+	OP = (a.T).reshape(m,-1,1) * (a.T).reshape(m,1,-1) #outer product 
+	jacobian = DM - OP
+	return jacobian
 
 
 def compute_cost(AL, Y):
@@ -149,7 +158,7 @@ def compute_softmax_cost(AL, Y):
 	return -(1./m)*np.sum(L)
     
     
-    
+
     
 def load_datasets(root, height, width, train_ratio=0.7, gray=True):
 	
@@ -303,12 +312,9 @@ def forward_prop(params, X_train, Y_train, L, activations):
     			cache["A" + str(l+1)] = softmax(cache["Z"+ str(l+1)])
     		else: raise Exception("invalid activation function") 
     	
-    	if activations[L-1] == "softmax":			
-		cost = compute_softmax_cost(cache["A" + str(L)], Y_train)
-	else:
-		cost = compute_cost(cache["A" + str(L)], Y_train)
+    	AL = cache["A" + str(L)]
 	
-    	return cache, cost
+    	return cache, AL
 
 def forward_prop_with_dropout():
     None
@@ -343,15 +349,17 @@ def gradient_check_2(parameters, gradients, X, Y, L, activations, epsilon = 1e-7
         # "_" is used because the function you have to outputs two parameters but we only care about the first one
         ### START CODE HERE ### (approx. 3 lines)
         thetaplus = np.copy(parameters_values)                                   
-        thetaplus[i][0] += epsilon                             
-        _, J_plus[i]= forward_prop(vector_to_dictionary(thetaplus, shapes), X, Y, L, activations)                            
+        thetaplus[i][0] += epsilon  
+        _, A = forward_prop(vector_to_dictionary(thetaplus, shapes), X, Y, L, activations)                            
+        J_plus[i] = compute_softmax_cost(A, Y) 
         ### END CODE HERE ###
         
         # Compute J_minus[i]. Inputs: "parameters_values, epsilon". Output = "J_minus[i]".
         ### START CODE HERE ### (approx. 3 lines)
         thetaminus = np.copy(parameters_values)                                  
         thetaminus[i][0] -= epsilon                                     
-        _, J_minus[i] = forward_prop(vector_to_dictionary(thetaminus, shapes), X, Y, L, activations)
+        _, A = forward_prop(vector_to_dictionary(thetaminus, shapes), X, Y, L, activations)
+        J_minus[i] = compute_softmax_cost(A, Y) 
         ### END CODE HERE ###
         
         # Compute gradapprox[i]
@@ -430,37 +438,43 @@ def backward_prop(Y, params, cache, activations):
 	L = len(activations)
 	m = Y.shape[1]
 	AL = cache["A" + str(L)]
-	dA_prev = - (np.divide(Y, AL) - np.divide(1 - Y, 1 - AL))
+	dA = -np.divide(Y, AL).T
+	#print("Shape dA: " + str(dA.shape))
 	grads = {}
 	
 	# Iterate down inner layers to compute grads starting from outer layer
 	for l in range(L, 0, -1):
-		#print("l", l)
-		dA = dA_prev
-		A_prev = cache["A" + str(l-1)]
-		Zl = cache["Z" + str(l)] 
-		#print("Zl", Zl)
-		Wl = params["W" + str(l)]
 		
-		# compute Z gradient for layer
+		# compute dZ for current layer
+		Zl = cache["Z" + str(l)] 
+		#print("Current layer: " + str(l))
+		
+		if activations[l-1] == "softmax":
+			g_prime = batch_softmax_jacobian(Zl)
+			dZl = np.array([np.dot(dA[i], g_prime[i]) for i in range(m)]).T  # tensor-matrix multiplication
+			
 		if activations[l-1] == "sigmoid":
 			g_prime = sigmoid(Zl)*(1-sigmoid(Zl))
 			dZl = dA * g_prime
-			dZl = AL - Y
-		if activations[l-1] == "softmax":
-			dZl = cache["A" + str(l)] - Y
+		
 		if activations[l-1] == "ReLU":
 			g = relu(Zl)
 			g_prime = np.where(g > 0, 1, 0)
 			dZl = dA * g_prime
+			
 		if activations[l-1] == "tanh":
 			g_prime = 1 - tanh(Zl)**2
 			dZl = dA * g_prime
 			
 		# compute weight/bias gradients
+		Wl = params["W" + str(l)]
+		A_prev = cache["A" + str(l-1)]
 		dWl = np.dot(dZl, A_prev.T) / m
+		#print("dWl shape: " + str(dWl.shape))
 		dbl = np.sum(dZl, axis=1, keepdims=True) / m
-		dA_prev = np.dot(Wl.T, dZl)
+		
+		# compute dA for preceding layer
+		dA = np.dot(Wl.T, dZl)
 		
 		# store gradients
 		grads["dW" + str(l)] = dWl
@@ -504,8 +518,16 @@ def model(X_test, Y_test, X_train, Y_train, learning_rate = 0.001 ,num_epochs = 
     
 
 def predictions():
+	
 	return 
 
 
+def top1_accuracy(a, labels):
+	m = labels.shape[1]
+	correct = 0.
+	for i in range(m):
+		if np.argmax(labels[:,[i]]) == np.argmax(a[:,[i]]):
+			correct += 1
+	return correct / m
 
 
