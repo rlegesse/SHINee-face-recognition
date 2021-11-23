@@ -21,13 +21,17 @@ class Model:
 	def __init__(self, input_size):
 		self.__weights = {}
 		self.__biases = {}
-		self.__gradients = [{}]*2
-		self.__cache = None
+		self.__weight_grads = {}
+		self.__bias_grads = {}
+		self.__activation_cache = {}
+		self.__linear_cache = {}
 		self.__activations = [" "]  
 		self.__dimensions = [input_size]
 		self.__is_initialized = False
 		self.__logits = None
 		self.__cost = None
+		self.__costs = []
+		self.__trained = False
 
 
 	def add_layer(self, units, activation):
@@ -41,52 +45,64 @@ class Model:
 		self.__is_initialized = True
 		
 		 
-	def __forward_pass(self, _input, optimization):
-		self.__cache, self.__logits = nn.forward_pass(_input, 
-							   self.__activations, 
-							   self.__weights,
-							   self.__biases)
+	def __forward_pass(self, _input):
+		self.__logits, self.__linear_cache, self.__activation_cache = nn.forward_pass(_input, 
+								self.__activations, 
+								self.__weights,
+								self.__biases)
 	
-	
-	def __backward_pass(self, labels):
-		batch_size = labels.shape[1] 
-		dA = nn.cross_entropy_derivative(labels, self.logits)
-		
-		for layer, activation in reversed(list(enumerate(self.__activations, start=1))):
-			Z = self.__cache[0][layer]
-			A = self.__cache[1][layer]
-			dZ, dA, dW, db = nn.backward_step(Z, dA, self.__weights[layer], A, activation)
-			self.__gradients[0][layer] = dW
-			self.__gradients[1][layer] = db	
+	def __backward_pass(self, labels):	
+		self.__weight_grads, self.__bias_grads = nn.backward_pass(self.__logits, labels, self.__activations, 
+								self.__weights, self.__linear_cache, self.__activation_cache)
 			
 			
 	def __update_parameters(self, learning_rate):
 		for layer in range(1, len(self.__dimensions)):
-			self.__weights[layer] -= self.__gradients[0]*learning_rate
-			self.__biases[layer] -= self.__gradients[1]*learning_rate 
+			self.__weights[layer] -= self.__weight_grads[layer]*learning_rate
+			self.__biases[layer] -= self.__bias_grads[layer]*learning_rate 
 	
+	
+	def fit(self, nn_input, labels, iterations=1, learning_rate=0.1):		
+		assert self.__dimensions[-1] == labels.shape[0], "Output layer dimensions do not match number of classes."
+		assert self.__is_initialized == True, "Must call initialize() first!"
 		
-	def fit(self, _input, labels, epochs=100, learning_rate=0.1, optimization=None):
-		assert self.__is_initiazed == True, "Must call initialize() first!"
-		for epoch in range(epochs):
-			self.__forward_pass(_input, optimization)
-			cost = nn.compute_cost(self.__logits, labels)
-			self.__costs.append(cost)
+		for iteration in range(iterations):
+			self.__forward_pass(nn_input)
+			self.__cost = nn.compute_cost(self.__logits, labels)
+			self.__costs.append(self.__cost)
 			self.__backward_pass(labels)
 			self.__update_parameters(learning_rate)
-			if epoch % 100 == 0: 
-				print("Cost after {epoch} epochs: {cost}".format(epoch = epoch, cost = cost))
-			 
+		
+		self.__trained = True 
+		self.__accuracy = nn.top1_accuracy(self.__logits, labels)
+		
+		
+	def cost(self):
+		return(self.__cost)
 	
-	def plot_costs():
+				 
+	def gradient_check(self, nn_input, labels):
+		assert self.__trained == True, "train first!"
+		nn.gradient_check(nn_input, labels, self.__weight_grads, self.__bias_grads, self.__activations, 
+					self.__weights, self.__biases, epsilon=1e-5)
+					
+					
+	def plot_costs(self):
 		plt.plot(self.__costs)
 		plt.show()	
 		
 		
-	def predict(inputs, labels): 
-		self.__forward_pass(inputs, None)
-		
-		return predictions
+	def predict(self, inputs, labels): 
+		self.__forward_pass(inputs)
+		predictions = []		
+		print("test accuracy: {accuracy}".format(accuracy = self.accuracy(labels)))
+		for i in range(labels.shape[1]):
+			predictions.append(np.argmax(self.__logits[:,[i]]))
+		return predictions 
+	
+	
+	def accuracy(self):
+		return self.__accuracy
 	
 	
 	def summary(self):
@@ -122,7 +138,7 @@ class Initializer:
 
 	def __zeros_initializer(self, weights, biases, dimensions):
 		for l in range(1, len(dimensions)):
-			weights[l] = np.zeros(dimensions[l], dimensions[l-1]) * 0.01 # scale to prevent explosion
+			weights[l] = np.zeros(dimensions[l], dimensions[l-1]) 
 			biases[l] = np.zeros((dimensions[l], 1))
 		return
 
