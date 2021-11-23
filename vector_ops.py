@@ -1,3 +1,53 @@
+import numpy as np
+import math
+
+def parameters_to_vector(weights, biases):
+	assert len(weights.keys()) == len(biases.keys()), "weights and biases mismatched"
+	keys = []
+	vector = np.array([])
+	
+	#for p in list(dictionary.keys()):
+	#	indexes[p] = dictionary[p].shape
+
+	for key in list(weights.keys()):
+
+		# flatten parameter
+		weight = np.reshape(weights[key], -1)
+		#print("WEGIHT SHAPE:")
+		#print(weight.shape)
+		bias = np.reshape(biases[key], -1)
+		#print("BIASs SHAPE:")
+		#print(bias.shape)
+		theta = np.concatenate((weight, bias))  
+		vector = np.concatenate((vector, theta))
+ 
+	#print(keys)
+	
+	return vector
+
+
+def vector_to_parameters(vector, orig_weights, orig_biases):
+	weights = {}
+	biases = {}
+	i1 = 0
+	i2 = 0
+	for key in list(orig_weights.keys()):
+		i1 = i2
+		i2 = i1 + orig_weights[key].size
+
+		weight_vector = vector[i1:i2]
+		
+		i1 = i2
+		i2 = i1 + orig_biases[key].size
+
+		bias_vector = vector[i1:i2]
+
+		weights[key] = weight_vector.reshape(orig_weights[key].shape)
+		
+		biases[key] = bias_vector.reshape(orig_biases[key].shape)
+	return weights, biases
+	
+	
 def dictionary_to_vector(dictionary):
 	"""
 	Roll all our parameters dictionary into a single vector satisfying our specific required shape.
