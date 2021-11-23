@@ -4,6 +4,7 @@ import argparse
 import imutils
 import dlib
 import cv2
+import os
 
 #construct the argument parser and the arguments
 ap = argparse.ArgumentParser()
@@ -27,7 +28,9 @@ gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 # image
 cv2.imshow("Input", image)
 rects = detector(gray, 2)
-
+if rects == None:
+	print("\nCould not find face in:")
+	print(image)
 # loop over the face detection
 i = 0
 for rect in rects:
@@ -41,5 +44,7 @@ for rect in rects:
 	#cv2.imshow("Aligned", faceAligned)
 	#cv2.waitKey(0)
         #save the output images
-        cv2.imwrite(args["output"] + str(i) + "_"  + args["name"], faceAligned)
+        filename = os.path.splitext(args["name"])[0]
+        extension = os.path.splitext(args["name"])[1]
+        cv2.imwrite(args["output"] + filename + "_"  + str(i) + extension, faceAligned)
         i +=1
